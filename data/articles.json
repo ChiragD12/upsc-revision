@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "question": "Which Article deals with Protection of Life and Personal Liberty?",
+        "options": [
+            "Article 20",
+            "Article 21",
+            "Article 22",
+            "Article 23"
+        ],
+        "answer": "Article 21",
+        "explanation": "Article 21 guarantees protection of life and personal liberty."
+    },
+    {
+        "id": 2,
+        "question": "Which Article abolishes Untouchability?",
+        "options": [
+            "Article 15",
+            "Article 16",
+            "Article 17",
+            "Article 18"
+        ],
+        "answer": "Article 17",
+        "explanation": "Article 17 abolishes untouchability."
+    },
+    {
+        "id": 3,
+        "question": "Equality before law is guaranteed under which Article?",
+        "options": [
+            "Article 12",
+            "Article 13",
+            "Article 14",
+            "Article 15"
+        ],
+        "answer": "Article 14",
+        "explanation": "Article 14 guarantees equality before law and equal protection of laws."
+    }
+]
