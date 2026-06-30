@@ -6,8 +6,7 @@ const urlsToCache = [
     '/js/app.js',
     '/js/data.js',
     '/js/subjects.js',
-    '/assets/icon1234.png',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+    '/assets/icon1234.png'
 ];
 
 self.addEventListener('install', event => {
