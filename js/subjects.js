@@ -146,7 +146,6 @@ const UNIVERSAL_SUBJECT_DATA = [
             { id: "nonConstitutionalBodies", title: "Non-Constitutional Bodies", icon: "users", enabled: true, dataset: [] },
             { id: "politicalParties", title: "Political Parties & Elections", icon: "vote", enabled: true, dataset: [] },
             { id: "antiDefectionLaw", title: "Anti-Defection Law", icon: "gavel", enabled: true, dataset: [] }
-            }
         ]
     },
     {
