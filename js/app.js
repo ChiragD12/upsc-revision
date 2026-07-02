@@ -1075,12 +1075,23 @@ function createQuestion(item, type = "descriptionToArticle") {
         ? buildArticleOptions(correctArticle, distractorArticles)
         : buildDescriptionOptions(correctDescription, distractorArticles);
 
+    const optionsData = options.map(option => {
+        const card = type === "descriptionToArticle"
+            ? CONSTITUTION_CARDS.find(c => c.article === option)
+            : CONSTITUTION_CARDS.find(c => c.body === option);
+        return {
+            label: option,
+            card: card || { body: option }
+        };
+    });
+
     return {
         article: correctArticle,
         type,
         engine: "constitution",
         question: buildQuestionPrompt(item, type),
         options,
+        optionsData,
         correct: options.indexOf(type === "descriptionToArticle" ? correctArticle : correctDescription),
         explanation: `${correctArticle} deals with "${correctDescription}".`
     };
@@ -1414,6 +1425,9 @@ function renderQuestion() {
         return;
     }
 
+    const answered = state.quiz.answers[state.quiz.current] !== undefined;
+    const selected = state.quiz.answers[state.quiz.current];
+
     const progress = (state.quiz.current / state.quiz.total) * 100;
     const headerTitle = state.quiz.engine === "universal" ? (state.quiz.topic || "Universal Quiz") : "Constitution Articles";
     const backTarget = state.quiz.engine === "universal" ? "renderPolity" : "renderQuizLength";
@@ -1425,10 +1439,7 @@ function renderQuestion() {
 
         <div class="card quiz-card">
             <div class="progress">
-                <div
-                    class="progress-fill"
-                    style="width:${progress}%">
-                </div>
+                <div class="progress-fill" style="width:${progress}%"></div>
             </div>
 
             ${renderScoreboard()}
@@ -1438,56 +1449,82 @@ function renderQuestion() {
             </h2>
 
             ${renderQuestionContent(q)}
+
+            ${answered ? `
+            <div class="explanation-box">
+                <h3>Explanation</h3>
+                <p>${q.explanation || ""}</p>
+                
+                ${(state.quiz.engine === "constitution" && q.optionsData) ? `
+                <h3>Learn Every Option</h3>
+                <div class="options-list">
+                    ${q.optionsData.map((optionData, index) => {
+                        const isCorrectOption = index === q.correct;
+                        const isSelectedOption = index === selected;
+                        const marker = isCorrectOption ? "✅ Correct" : isSelectedOption ? "Your choice" : "";
+                        return `
+                        <div class="review-option-row ${isCorrectOption ? "correct" : ""}">
+                            <div class="review-option-label">
+                                <strong>${optionData.card.article || optionData.label}</strong>
+                                ${marker ? `<span class="review-option-marker">${marker}</span>` : ""}
+                            </div>
+                            <div>${optionData.card.body}</div>
+                        </div>
+                        `;
+                    }).join("")}
+                </div>
+                ` : ""}
+            </div>
+            ` : ""}
+
+            <div class="action-row">
+                <button id="previousButton" class="secondary-button" ${state.quiz.current === 0 ? "disabled" : ""}>◀ Previous</button>
+                <button id="nextButton" class="accent-button">${isLastQuestion() ? "Finish Quiz" : "Next ▶"}</button>
+            </div>
         </div>
     </main>
     `;
 
-    if (state.quiz.engine === "universal") {
-        const buttons = document.querySelectorAll(".option");
-        buttons.forEach(button => {
-            button.onclick = () => {
-                if (q.type === QUESTION_TYPES.multipleCorrect || q.type === QUESTION_TYPES.statementBased) {
-                    button.classList.toggle("selected");
-                    return;
-                }
+    document.querySelectorAll(".option").forEach(button => {
+        button.onclick = () => reviewQuestion(Number(button.dataset.index));
+    });
 
-                if (q.type === QUESTION_TYPES.matchTheFollowing) {
-                    return;
-                }
-
-                reviewQuestion(Number(button.dataset.index));
-            };
-        });
-
-        const submitButton = document.getElementById("submitAnswerButton");
-        if (submitButton) {
-            submitButton.onclick = () => {
-                if (q.type === QUESTION_TYPES.matchTheFollowing) {
-                    const answers = Array.from(document.querySelectorAll("select.option")).map(select => Number(select.value));
-                    reviewQuestion(answers);
-                    return;
-                }
-
-                const selected = Array.from(document.querySelectorAll(".option.selected")).map(button => Number(button.dataset.index));
-                reviewQuestion(selected);
-            };
-        }
-    } else {
-        document.querySelectorAll(".option").forEach(button => {
-            button.onclick = () => reviewQuestion(Number(button.dataset.index));
-        });
-    }
-
+    document.getElementById("previousButton").onclick = goToPreviousQuestion;
+    document.getElementById("nextButton").onclick = goToNextQuestion;
     document.getElementById("topHomeButton").onclick = renderHome;
 }
 
 function renderQuestionContent(question) {
+    const answered = state.quiz.answers[state.quiz.current] !== undefined;
+    const selected = state.quiz.answers[state.quiz.current];
+
     if (state.quiz.engine !== "universal") {
         return `
         <div class="options">
-            ${question.options.map((option, index) => `
-            <button class="option" data-index="${index}">${option}</button>
-            `).join("")}
+            ${(question.optionsData || question.options).map((option, index) => {
+                const label = option.label || option;
+                let cls = "option";
+                let marker = "";
+
+                if (answered) {
+                    const isCorrectOption = index === question.correct;
+                    const isSelectedOption = index === selected;
+
+                    if (isCorrectOption) {
+                        cls += " correct";
+                        marker = "✓";
+                    } else if (isSelectedOption) {
+                        cls += " wrong";
+                        marker = "✗";
+                    }
+                }
+
+                return `
+                <button class="${cls}" data-index="${index}" ${answered ? "disabled" : ""}>
+                    ${label} ${marker ? `<span class="marker">${marker}</span>` : ""}
+                </button>
+                `;
+            }).join("")}
         </div>
         `;
     }
@@ -1585,15 +1622,20 @@ function renderScoreboard() {
 
 function reviewQuestion(selected) {
     const q = state.quiz.questions[state.quiz.current];
-    const isCorrect = state.quiz.engine === "universal"
-        ? QuestionValidator[q.type](q, selected)
-        : selected === q.correct;
+    
+    // Process answer if not already answered
+    if (state.quiz.answers[state.quiz.current] === undefined) {
+        const isCorrect = state.quiz.engine === "universal"
+            ? QuestionValidator[q.type](q, selected)
+            : selected === q.correct;
 
-    updateScore(q, isCorrect);
-    state.quiz.answers[state.quiz.current] = selected;
-    state.lastReview = { question: q, selected, isCorrect };
-    persistQuizProgress("review");
-    renderReview(q, selected, isCorrect);
+        updateScore(q, isCorrect);
+        state.quiz.answers[state.quiz.current] = selected;
+        persistQuizProgress("question");
+    }
+    
+    // Rerender to show feedback without leaving question screen
+    renderQuestion();
 }
 
 function updateScore(question, isCorrect) {
@@ -1693,6 +1735,14 @@ function getBookmarkLabel(article) {
 
 function isLastQuestion() {
     return state.quiz.current + 1 === state.quiz.total;
+}
+
+function goToPreviousQuestion() {
+    if (state.quiz.current > 0) {
+        state.quiz.current--;
+        persistQuizProgress("question");
+        renderQuestion();
+    }
 }
 
 function goToNextQuestion() {
